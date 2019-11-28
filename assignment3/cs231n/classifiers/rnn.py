@@ -141,8 +141,19 @@ class CaptioningRNN(object):
         # in your implementation, if needed.                                       #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
+        # Forward Pass
+        h0, c_aff = affine_forward(features, W_proj, b_proj)
+        x, c_wem = word_embedding_forward(captions_in, W_embed)
+        rnn, c_rnn = rnn_forward(x, h0, Wx, Wh , b)
+        tmp_aff, c_tmpaff = temporal_affine_forward(rnn, W_vocab, b_vocab)
+        loss, dx = temporal_softmax_loss(tmp_aff, captions_out, mask )
 
-        pass
+        # Backward Pass
+        dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, c_tmpaff)
+        dx, dh0, grads['Wx'],grads['Wh'], grads['b'] = rnn_backward(dx, c_rnn)
+        grads['W_embed'] = word_embedding_backward(dx, c_wem)
+        dx,grads['W_proj'], grads['b_proj'] = affine_backward(dh0, c_aff)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -210,8 +221,17 @@ class CaptioningRNN(object):
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        
+        h, _ = affine_forward(features, W_proj, b_proj)
+        x = self._start
+        print(x,W_embed.shape)
+        for i in range(max_length):
+          x, _ = word_embedding_forward(x ,W_embed)
+          h, _ = rnn_step_forward(x, h, Wx, Wh, b)
+          score, _ = affine_forward(h, W_vocab, b_vocab)
+          wrd = np.argmax(score)
+        print(W_embed.shape)
+          
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
