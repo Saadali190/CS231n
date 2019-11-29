@@ -222,16 +222,16 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
-        h, _ = affine_forward(features, W_proj, b_proj)
-        x = self._start
-        print(x,W_embed.shape)
+        prev_h, _ = affine_forward(features, W_proj, b_proj)
+        wrd = self._start* np.ones((N,1), dtype= np.int32)
         for i in range(max_length):
-          x, _ = word_embedding_forward(x ,W_embed)
-          h, _ = rnn_step_forward(x, h, Wx, Wh, b)
-          score, _ = affine_forward(h, W_vocab, b_vocab)
-          wrd = np.argmax(score)
-        print(W_embed.shape)
-          
+          x, _ = word_embedding_forward(wrd ,W_embed)
+          h, _ = rnn_step_forward(np.squeeze(x), prev_h, Wx, Wh, b)
+          score, _ = temporal_affine_forward(h[:, np.newaxis, :], W_vocab, b_vocab)
+          pred_wrd = np.argmax(score, axis=2)
+          captions[:,i] = np.squeeze(pred_wrd)
+          wrd = pred_wrd
+          prev_h = h
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
