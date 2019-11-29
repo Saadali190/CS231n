@@ -145,13 +145,19 @@ class CaptioningRNN(object):
         # Forward Pass
         h0, c_aff = affine_forward(features, W_proj, b_proj)
         x, c_wem = word_embedding_forward(captions_in, W_embed)
-        rnn, c_rnn = rnn_forward(x, h0, Wx, Wh , b)
-        tmp_aff, c_tmpaff = temporal_affine_forward(rnn, W_vocab, b_vocab)
+        if self.cell_type == 'lstm':
+          h, c_lstm = lstm_forward(x, h0, Wx, Wh, b)
+        else:
+          h, c_rnn = rnn_forward(x, h0, Wx, Wh , b)
+        tmp_aff, c_tmpaff = temporal_affine_forward(h, W_vocab, b_vocab)
         loss, dx = temporal_softmax_loss(tmp_aff, captions_out, mask )
 
         # Backward Pass
         dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, c_tmpaff)
-        dx, dh0, grads['Wx'],grads['Wh'], grads['b'] = rnn_backward(dx, c_rnn)
+        if self.cell_type == 'lstm':
+          dx, dh0, grads['Wx'],grads['Wh'], grads['b'] = lstm_backward(dx, c_lstm)
+        else:
+          dx, dh0, grads['Wx'],grads['Wh'], grads['b'] = rnn_backward(dx, c_rnn)
         grads['W_embed'] = word_embedding_backward(dx, c_wem)
         dx,grads['W_proj'], grads['b_proj'] = affine_backward(dh0, c_aff)
 
@@ -221,12 +227,17 @@ class CaptioningRNN(object):
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        
+        H = Wh.shape[0]
+        if self.cell_type == 'lstm':
+            prev_c = np.zeros((N,H))
         prev_h, _ = affine_forward(features, W_proj, b_proj)
         wrd = self._start* np.ones((N,1), dtype= np.int32)
         for i in range(max_length):
           x, _ = word_embedding_forward(wrd ,W_embed)
-          h, _ = rnn_step_forward(np.squeeze(x), prev_h, Wx, Wh, b)
+          if self.cell_type == 'lstm':
+            h, prev_c, _ = lstm_step_forward(np.squeeze(x), prev_h, prev_c, Wx, Wh, b)
+          else:
+            h, _ = rnn_step_forward(np.squeeze(x), prev_h, Wx, Wh, b)
           score, _ = temporal_affine_forward(h[:, np.newaxis, :], W_vocab, b_vocab)
           pred_wrd = np.argmax(score, axis=2)
           captions[:,i] = np.squeeze(pred_wrd)
